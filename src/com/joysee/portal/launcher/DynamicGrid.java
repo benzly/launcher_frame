@@ -23,6 +23,7 @@ import android.graphics.Rect;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -232,6 +233,12 @@ public class DynamicGrid {
             int minWidthPx, int minHeightPx,
             int widthPx, int heightPx,
             int awPx, int ahPx) {
+
+        mProfile = new DeviceProfile(context, null,
+                mMinWidth, mMinHeight,
+                widthPx, heightPx,
+                awPx, ahPx,
+                resources);
     }
 
     DeviceProfile getDeviceProfile() {

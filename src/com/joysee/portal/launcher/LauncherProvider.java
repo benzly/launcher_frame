@@ -33,6 +33,7 @@ import android.content.SharedPreferences;
 import android.content.UriMatcher;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.content.res.XmlResourceParser;
 import android.database.Cursor;
@@ -45,27 +46,150 @@ import android.util.Xml;
 
 import com.joysee.common.utils.JLog;
 import com.joysee.portal.R;
-import com.joysee.portal.launcher.LauncherSettings.Favorites;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class LauncherProvider extends ContentProvider {
 
+    public static final class FavoritesType {
+        /**
+         * The gesture is an application
+         */
+        static final int ITEM_TYPE_APPLICATION = 0;
+        /**
+         * The gesture is an application created shortcut
+         */
+        static final int ITEM_TYPE_SHORTCUT = 1;
+    }
+
+    public static final class FavoritesIconType {
+        /**
+         * The icon is a resource identified by a package name and an integer id.
+         */
+        static final int ICON_TYPE_RESOURCE = 0;
+        /**
+         * The icon is a bitmap.
+         */
+        static final int ICON_TYPE_BITMAP = 1;
+    }
+
+    public static final class FavoritesContainerType {
+        /**
+         * The icon is a resource identified by a package name and an integer id.
+         */
+        static final int CONTAINER_DESKTOP = -100;
+        static final int CONTAINER_HOTSEAT = -101;
+    }
+
+    public static final class FavoritesURI {
+        /**
+         * The content:// style URL for this table
+         */
+        static final Uri CONTENT_URI = Uri.parse("content://" +
+                LauncherProvider.AUTHORITY + "/" + LauncherProvider.TABLE_FAVORITES +
+                "?" + LauncherProvider.PARAMETER_NOTIFY + "=true");
+
+        /**
+         * The content:// style URL for this table. When this Uri is used, no
+         * notification is sent if the content changes.
+         */
+        static final Uri CONTENT_URI_NO_NOTIFICATION = Uri.parse("content://" +
+                LauncherProvider.AUTHORITY + "/" + LauncherProvider.TABLE_FAVORITES +
+                "?" + LauncherProvider.PARAMETER_NOTIFY + "=false");
+
+        /**
+         * The content:// style URL for a given row, identified by its id.
+         * 
+         * @param id The row id.
+         * @param notify True to send a notification is the content changes.
+         * @return The unique content URL for the specified row.
+         */
+        static Uri getContentUri(long id, boolean notify) {
+            return Uri.parse("content://" + LauncherProvider.AUTHORITY +
+                    "/" + LauncherProvider.TABLE_FAVORITES + "/" + id + "?" +
+                    LauncherProvider.PARAMETER_NOTIFY + "=" + notify);
+        }
+
+    }
+
+    /**
+     * Workspace Screens. Tracks the order of workspace screens.
+     */
+    public static final class WorkspaceScreensURI {
+        static final Uri CONTENT_URI = Uri.parse("content://" +
+                LauncherProvider.AUTHORITY + "/" + LauncherProvider.TABLE_WORKSPACE_SCREENS +
+                "?" + LauncherProvider.PARAMETER_NOTIFY + "=true");
+
+    }
+
+    public static final class FavoritesColumns {
+        public static final String _ID = "_id";
+        public static final String TITLE = "title";
+        public static final String INTENT = "intent";
+        public static final String SCREEN = "screen";
+        public static final String CELLX = "cellX";
+        public static final String CELLY = "cellY";
+        public static final String CELLW = "cellW";
+        public static final String CELLH = "cellH";
+        public static final String ITEMTYPE = "itemType";
+        public static final String ISSHORTCUT = "isShortcut";
+        public static final String ICONTYPE = "iconType";
+        public static final String ICONPACKAGE = "iconPackage";
+        public static final String ICONRESOURCE = "iconResource";
+        public static final String URI = "_uri";
+        public static final String CONTAINER = "container";
+        public static final String ICON = "icon";
+        public static final String DISPLAYMODE = "displayMode";
+    }
+
+    protected static final class FavoritesColumnsIndex {
+        public static final int _ID = 0;
+        public static final int TITLE = 1;
+        public static final int INTENT = 2;
+        public static final int SCREEN = 3;
+        public static final int CELLX = 4;
+        public static final int CELLY = 5;
+        public static final int CELLW = 6;
+        public static final int CELLH = 7;
+        public static final int ITEMTYPE = 8;
+        public static final int ISSHORTCUT = 9;
+        public static final int ICONTYPE = 10;
+        public static final int ICONPACKAGE = 11;
+        public static final int ICONRESOURCE = 12;
+        public static final int URI = 13;
+        public static final int CONTAINER = 14;
+        public static final int ICON = 15;
+        public static final int DISPLAYMODE = 16;
+    }
+
+    public static final class WorkspacesColumns {
+        public static final String _ID = "_id";
+        public static final String SCREEN_RANK = "screen_rank";
+        public static final String SCREEN_NAME = "screen_name";
+        public static final String MODIFIED = "modified";
+    }
+
+    protected static final class WorkspacesColumnsIndex {
+        public static final int _ID = 0;
+        public static final int SCREEN_RANK = 1;
+        public static final int SCREEN_NAME = 2;
+        public static final int MODIFIED = 3;
+    }
+
     private static final class DatabaseHelper extends SQLiteOpenHelper {
         private static final String TAG_FAVORITES = "favorites";
         private static final String TAG_FAVORITE = "favorite";
-        private static final String TAG_CLOCK = "clock";
-        private static final String TAG_SEARCH = "search";
-        private static final String TAG_APPWIDGET = "appwidget";
         private static final String TAG_SHORTCUT = "shortcut";
-        private static final String TAG_FOLDER = "folder";
         private static final String TAG_EXTRA = "extra";
         private static final String TAG_INCLUDE = "include";
+
+        private static final String tag_ = "";
 
         private Context mContext;
         private long mMaxItemId = -1;
@@ -87,6 +211,7 @@ public class LauncherProvider extends ContentProvider {
             JLog.d(TAG, "PortalProvider DatabaseHelper onCreate");
             createFavoritesTable(db);
             createWorkspacesTable(db);
+            setFlagEmptyDbCreated();
         }
 
         private void createFavoritesTable(SQLiteDatabase db) {
@@ -95,21 +220,23 @@ public class LauncherProvider extends ContentProvider {
             sqlCreateTable.append("CREATE TABLE IF NOT EXISTS ")
                     .append(TABLE_FAVORITES)
                     .append(" (")
-                    .append("_id").append(" INTEGER PRIMARY KEY,")
-                    .append("title").append(" TEXT,")
-                    .append("intent").append(" TEXT,")
-                    .append("screen").append(" INTEGER,")
-                    .append("cellX").append(" INTEGER,")
-                    .append("cellY").append(" INTEGER,")
-                    .append("spanX").append(" INTEGER,")
-                    .append("spanY").append(" INTEGER,")
-                    .append("itemType").append(" INTEGER,")
-                    .append("isShortcut").append(" INTEGER,")
-                    .append("iconType").append(" INTEGER,")
-                    .append("iconPackage").append(" TEXT,")
-                    .append("iconResource").append(" TEXT,")
-                    .append("uri").append(" TEXT,")
-                    .append("displayMode").append(" INTEGER")
+                    .append(FavoritesColumns._ID).append(" INTEGER PRIMARY KEY,")
+                    .append(FavoritesColumns.TITLE).append(" TEXT,")
+                    .append(FavoritesColumns.INTENT).append(" TEXT,")
+                    .append(FavoritesColumns.SCREEN).append(" INTEGER,")
+                    .append(FavoritesColumns.CELLX).append(" INTEGER,")
+                    .append(FavoritesColumns.CELLY).append(" INTEGER,")
+                    .append(FavoritesColumns.CELLW).append(" INTEGER,")
+                    .append(FavoritesColumns.CELLH).append(" INTEGER,")
+                    .append(FavoritesColumns.ITEMTYPE).append(" INTEGER,")
+                    .append(FavoritesColumns.ISSHORTCUT).append(" INTEGER,")
+                    .append(FavoritesColumns.ICONTYPE).append(" INTEGER,")
+                    .append(FavoritesColumns.ICONPACKAGE).append(" TEXT,")
+                    .append(FavoritesColumns.ICONRESOURCE).append(" TEXT,")
+                    .append(FavoritesColumns.URI).append(" TEXT,")
+                    .append(FavoritesColumns.CONTAINER).append(" INTEGER,")
+                    .append(FavoritesColumns.ICON).append(" BLOB,")
+                    .append(FavoritesColumns.DISPLAYMODE).append(" INTEGER")
                     .append(")");
             db.execSQL(sqlCreateTable.toString());
         }
@@ -120,9 +247,10 @@ public class LauncherProvider extends ContentProvider {
             sqlCreateTable.append("CREATE TABLE IF NOT EXISTS ")
                     .append(TABLE_WORKSPACE_SCREENS)
                     .append(" (")
-                    .append(LauncherSettings.WorkspaceScreens._ID).append(" INTEGER,")
-                    .append(LauncherSettings.WorkspaceScreens.SCREEN_RANK).append(" INTEGER,")
-                    .append(LauncherSettings.ChangeLogColumns.MODIFIED).append(" INTEGER NOT NULL DEFAULT 0")
+                    .append(WorkspacesColumns._ID).append(" INTEGER PRIMARY KEY,")
+                    .append(WorkspacesColumns.SCREEN_RANK).append(" INTEGER,")
+                    .append(WorkspacesColumns.SCREEN_NAME).append(" TEXT,")
+                    .append(WorkspacesColumns.MODIFIED).append(" INTEGER NOT NULL DEFAULT 0")
                     .append(")");
             db.execSQL(sqlCreateTable.toString());
         }
@@ -134,6 +262,7 @@ public class LauncherProvider extends ContentProvider {
             if (upgradeVersion != newVersion) {
                 Log.w(TAG, "Got stuck trying to upgrade from version " + newVersion + ", must wipe the provider");
                 db.execSQL("DROP TABLE IF EXISTS " + TABLE_FAVORITES);
+                db.execSQL("DROP TABLE IF EXISTS " + TABLE_WORKSPACE_SCREENS);
                 onCreate(db);
             }
         }
@@ -155,7 +284,7 @@ public class LauncherProvider extends ContentProvider {
         }
 
         private long initializeMaxScreenId(SQLiteDatabase db) {
-            Cursor c = db.rawQuery("SELECT MAX(" + LauncherSettings.WorkspaceScreens._ID + ") FROM " + TABLE_WORKSPACE_SCREENS, null);
+            Cursor c = db.rawQuery("SELECT MAX(" + WorkspacesColumns._ID + ") FROM " + TABLE_WORKSPACE_SCREENS, null);
             final int maxIdIndex = 0;
             long id = -1;
             if (c != null && c.moveToNext()) {
@@ -213,12 +342,11 @@ public class LauncherProvider extends ContentProvider {
          * @param filterContainerId The specific container id of items to load
          */
         private int loadFavorites(SQLiteDatabase db, int workspaceResourceId) {
-            JLog.d(TAG, String.format("Loading favorites from resid=0x%08x", workspaceResourceId));
+            JLog.d(TAG, String.format("loadFavorites from resid=0x%08x", workspaceResourceId));
 
             Intent intent = new Intent(Intent.ACTION_MAIN, null);
             intent.addCategory(Intent.CATEGORY_LAUNCHER);
             ContentValues values = new ContentValues();
-
             PackageManager packageManager = mContext.getPackageManager();
             int i = 0;
             try {
@@ -253,50 +381,42 @@ public class LauncherProvider extends ContentProvider {
                     }
 
                     // Assuming it's a <favorite> at this point
-                    TypedArray a = mContext.obtainStyledAttributes(attrs, R.styleable.Favorite);
+                    TypedArray typedArray = mContext.obtainStyledAttributes(attrs, R.styleable.Favorite);
 
-                    long container = LauncherSettings.Favorites.CONTAINER_DESKTOP;
-                    if (a.hasValue(R.styleable.Favorite_container)) {
-                        container = Long.valueOf(a.getString(R.styleable.Favorite_container));
+                    long container = FavoritesContainerType.CONTAINER_DESKTOP;
+                    if (typedArray.hasValue(R.styleable.Favorite_container)) {
+                        container = Long.valueOf(typedArray.getString(R.styleable.Favorite_container));
                     }
 
-                    String screen = a.getString(R.styleable.Favorite_screen);
-                    String x = a.getString(R.styleable.Favorite_x);
-                    String y = a.getString(R.styleable.Favorite_y);
+                    String screen = typedArray.getString(R.styleable.Favorite_screen);
+                    String x = typedArray.getString(R.styleable.Favorite_x);
+                    String y = typedArray.getString(R.styleable.Favorite_y);
 
                     values.clear();
-                    values.put(LauncherSettings.Favorites.CONTAINER, container);
-                    values.put(LauncherSettings.Favorites.SCREEN, screen);
-                    values.put(LauncherSettings.Favorites.CELLX, x);
-                    values.put(LauncherSettings.Favorites.CELLY, y);
+                    values.put(FavoritesColumns.CONTAINER, container);
+                    values.put(FavoritesColumns.SCREEN, screen);
+                    values.put(FavoritesColumns.CELLX, x);
+                    values.put(FavoritesColumns.CELLY, y);
 
-                    final String title = a.getString(R.styleable.Favorite_title);
-                    final String pkg = a.getString(R.styleable.Favorite_packageName);
+                    final String title = typedArray.getString(R.styleable.Favorite_title);
+                    final String pkg = typedArray.getString(R.styleable.Favorite_packageName);
                     final String something = title != null ? title : pkg;
-                    Log.v(TAG, String.format(
+                    Log.d(TAG, String.format(
                             ("%" + (2 * (depth + 1)) + "s<%s%s c=%d s=%s x=%s y=%s>"),
                             "", name,
                             (something == null ? "" : (" \"" + something + "\"")),
                             container, screen, x, y));
 
                     if (TAG_FAVORITE.equals(name)) {
-                        long id = addAppShortcut(db, values, a, packageManager, intent);
+                        long id = addAppShortcut(db, values, typedArray, packageManager, intent);
                         added = id >= 0;
-                    } else if (TAG_SEARCH.equals(name)) {
-                        // addSearchWidget
-                    } else if (TAG_CLOCK.equals(name)) {
-                        // addClockWidget
-                    } else if (TAG_APPWIDGET.equals(name)) {
-                        // addAppWidget
                     } else if (TAG_SHORTCUT.equals(name)) {
-                        // addUriShortcut
-                    } else if (TAG_FOLDER.equals(name)) {
-                        // addFolder
+                        addUriShortcut(db, values, typedArray);
                     }
                     if (added) {
                         i++;
                     }
-                    a.recycle();
+                    typedArray.recycle();
                 }
             } catch (XmlPullParserException e) {
                 Log.w(TAG, "Got exception parsing favorites.", e);
@@ -329,12 +449,12 @@ public class LauncherProvider extends ContentProvider {
             }
         }
 
-        private long addAppShortcut(SQLiteDatabase db, ContentValues values, TypedArray a,
-                PackageManager packageManager, Intent intent) {
+        private long addAppShortcut(SQLiteDatabase db, ContentValues values, TypedArray typeArray, PackageManager packageManager,
+                Intent intent) {
             long id = -1;
             ActivityInfo info;
-            String packageName = a.getString(R.styleable.Favorite_packageName);
-            String className = a.getString(R.styleable.Favorite_className);
+            String packageName = typeArray.getString(R.styleable.Favorite_packageName);
+            String className = typeArray.getString(R.styleable.Favorite_className);
             try {
                 ComponentName cn;
                 try {
@@ -350,20 +470,59 @@ public class LauncherProvider extends ContentProvider {
                 }
                 id = generateNewItemId();
                 intent.setComponent(cn);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
-                        Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-                values.put(Favorites.INTENT, intent.toUri(0));
-                values.put(Favorites.TITLE, info.loadLabel(packageManager).toString());
-                values.put(Favorites.ITEM_TYPE, Favorites.ITEM_TYPE_APPLICATION);
-                values.put(Favorites.SPANX, 1);
-                values.put(Favorites.SPANY, 1);
-                values.put(Favorites._ID, generateNewItemId());
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                values.put(FavoritesColumns.INTENT, intent.toUri(0));
+                values.put(FavoritesColumns.TITLE, info.loadLabel(packageManager).toString());
+                values.put(FavoritesColumns.ITEMTYPE, FavoritesType.ITEM_TYPE_APPLICATION);
+                values.put(FavoritesColumns.CELLW, typeArray.getString(R.styleable.Favorite_w));
+                values.put(FavoritesColumns.CELLH, typeArray.getString(R.styleable.Favorite_h));
+                values.put(FavoritesColumns._ID, generateNewItemId());
                 if (dbInsertAndCheck(this, db, TABLE_FAVORITES, null, values) < 0) {
                     return -1;
                 }
             } catch (PackageManager.NameNotFoundException e) {
-                Log.w(TAG, "Unable to add favorite: " + packageName +
-                        "/" + className, e);
+                Log.w(TAG, "Unable to add favorite: " + packageName + "/" + className, e);
+            }
+            return id;
+        }
+
+        private long addUriShortcut(SQLiteDatabase db, ContentValues values, TypedArray typeArray) {
+            Resources r = mContext.getResources();
+
+            final int iconResId = typeArray.getResourceId(R.styleable.Favorite_icon, 0);
+            final int titleResId = typeArray.getResourceId(R.styleable.Favorite_title, 0);
+
+            Intent intent;
+            String uri = null;
+            try {
+                uri = typeArray.getString(R.styleable.Favorite_uri);
+                intent = Intent.parseUri(uri, 0);
+            } catch (URISyntaxException e) {
+                Log.w(TAG, "Shortcut has malformed uri: " + uri);
+                return -1;
+            } catch (Exception e) {
+                return -1;
+            }
+
+            if (iconResId == 0 || titleResId == 0) {
+                Log.w(TAG, "Shortcut is missing title or icon resource ID");
+                return -1;
+            }
+
+            long id = generateNewItemId();
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            values.put(FavoritesColumns._ID, id);
+            values.put(FavoritesColumns.INTENT, intent.toUri(0));
+            values.put(FavoritesColumns.TITLE, r.getString(titleResId));
+            values.put(FavoritesColumns.ITEMTYPE, FavoritesType.ITEM_TYPE_SHORTCUT);
+            values.put(FavoritesColumns.CELLW, typeArray.getString(R.styleable.Favorite_w));
+            values.put(FavoritesColumns.CELLH, typeArray.getString(R.styleable.Favorite_h));
+            values.put(FavoritesColumns.ICONTYPE, FavoritesIconType.ICON_TYPE_RESOURCE);
+            values.put(FavoritesColumns.ICONPACKAGE, mContext.getPackageName());
+            values.put(FavoritesColumns.ICONRESOURCE, r.getResourceName(iconResId));
+
+            if (dbInsertAndCheck(this, db, TABLE_FAVORITES, null, values) < 0) {
+                return -1;
             }
             return id;
         }
@@ -374,6 +533,15 @@ public class LauncherProvider extends ContentProvider {
             SharedPreferences.Editor editor = sp.edit();
             editor.putBoolean(UPGRADED_FROM_OLD_DATABASE, true);
             editor.putBoolean(EMPTY_DATABASE_CREATED, false);
+            editor.commit();
+        }
+
+        private void setFlagEmptyDbCreated() {
+            String spKey = LauncherAppState.getSharedPreferencesKey();
+            SharedPreferences sp = mContext.getSharedPreferences(spKey, Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = sp.edit();
+            editor.putBoolean(EMPTY_DATABASE_CREATED, true);
+            editor.putBoolean(UPGRADED_FROM_OLD_DATABASE, false);
             editor.commit();
         }
 
@@ -432,13 +600,15 @@ public class LauncherProvider extends ContentProvider {
     static final String PARAMETER_NOTIFY = "notify";
 
     static final String TABLE_FAVORITES = "favorites";
-    static final String TABLE_WORKSPACE_SCREENS = "workspaceScreens";// TODO
+    static final String TABLE_WORKSPACE_SCREENS = "workspaceScreens";
 
     private static final int FAVORITES = 1;
+    private static final int WORKSPACE_SCREENS = 2;
 
     private static final UriMatcher sURIMatcher = new UriMatcher(UriMatcher.NO_MATCH);
     static {
         sURIMatcher.addURI(AUTHORITY, TABLE_FAVORITES, FAVORITES);
+        sURIMatcher.addURI(AUTHORITY, TABLE_WORKSPACE_SCREENS, WORKSPACE_SCREENS);
     }
 
     public static final Uri CONTENT_URI_HISTORY = Uri.parse("content://" + AUTHORITY + "/"
@@ -468,6 +638,7 @@ public class LauncherProvider extends ContentProvider {
     public boolean onCreate() {
         JLog.d(TAG, "----PortalProvider  onCreate----");
         mOpenHelper = new DatabaseHelper(getContext());
+        LauncherAppState.setLauncherProvider(this);
         return true;
     }
 
@@ -481,6 +652,9 @@ public class LauncherProvider extends ContentProvider {
         switch (match) {
             case FAVORITES:
                 table = TABLE_FAVORITES;
+                break;
+            case WORKSPACE_SCREENS:
+                table = TABLE_WORKSPACE_SCREENS;
                 break;
         }
 
@@ -503,6 +677,9 @@ public class LauncherProvider extends ContentProvider {
             case FAVORITES:
                 table = TABLE_FAVORITES;
                 break;
+            case WORKSPACE_SCREENS:
+                table = TABLE_WORKSPACE_SCREENS;
+                break;
         }
 
         long rowID = db.insert(table, null, values);
@@ -520,6 +697,9 @@ public class LauncherProvider extends ContentProvider {
         switch (match) {
             case FAVORITES:
                 ret = TABLE_FAVORITES;
+                break;
+            case WORKSPACE_SCREENS:
+                ret = TABLE_WORKSPACE_SCREENS;
                 break;
         }
         return ret;
@@ -545,6 +725,9 @@ public class LauncherProvider extends ContentProvider {
             case FAVORITES:
                 table = TABLE_FAVORITES;
                 break;
+            case WORKSPACE_SCREENS:
+                table = TABLE_WORKSPACE_SCREENS;
+                break;
         }
 
         int count;
@@ -564,6 +747,9 @@ public class LauncherProvider extends ContentProvider {
         switch (match) {
             case FAVORITES:
                 table = TABLE_FAVORITES;
+                break;
+            case WORKSPACE_SCREENS:
+                table = TABLE_WORKSPACE_SCREENS;
                 break;
         }
 
@@ -601,6 +787,7 @@ public class LauncherProvider extends ContentProvider {
      * @param workspaceResId that can be 0 to use default or non-zero for specific resource
      */
     public synchronized void loadDefaultFavoritesIfNecessary(int origWorkspaceResId) {
+        JLog.d(TAG, "loadDefaultFavoritesIfNecessary " + origWorkspaceResId);
         String spKey = LauncherAppState.getSharedPreferencesKey();
         SharedPreferences sp = getContext().getSharedPreferences(spKey, Context.MODE_PRIVATE);
 
@@ -623,9 +810,9 @@ public class LauncherProvider extends ContentProvider {
         }
     }
 
-    private static long dbInsertAndCheck(DatabaseHelper helper,
-            SQLiteDatabase db, String table, String nullColumnHack, ContentValues values) {
-        if (!values.containsKey(LauncherSettings.Favorites._ID)) {
+    private static long dbInsertAndCheck(DatabaseHelper helper, SQLiteDatabase db, String table,
+            String nullColumnHack, ContentValues values) {
+        if (!values.containsKey(FavoritesColumns._ID)) {
             throw new RuntimeException("Error: attempting to add item without specifying an id");
         }
         return db.insert(table, nullColumnHack, values);

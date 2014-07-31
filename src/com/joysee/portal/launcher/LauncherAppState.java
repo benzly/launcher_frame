@@ -22,11 +22,11 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.os.Handler;
-import android.provider.Settings;
 import android.util.Log;
-import android.view.Display;
 
 import com.joysee.common.utils.JLog;
+import com.joysee.portal.R;
+import com.joysee.portal.launcher.LauncherProvider.FavoritesURI;
 import com.joysee.portal.launcher.utils.Utilities;
 
 import java.lang.ref.WeakReference;
@@ -95,7 +95,10 @@ public class LauncherAppState {
 
         mIconCache = new IconCache(sContext);
 
-        mAppFilter = AppFilter.loadByName("app_filter_class");// TODO
+        String appFilterName = sContext.getString(R.string.app_filter_class);
+        // TODO appFilterName is null
+        //com.google.android.launcher.GelAppFilter
+        mAppFilter = AppFilter.loadByName(appFilterName);
         mModel = new LauncherModel(this, mIconCache, mAppFilter);
 
         // Register intent receivers
@@ -117,7 +120,7 @@ public class LauncherAppState {
 
         // Register for changes to the favorites
         ContentResolver resolver = sContext.getContentResolver();
-        resolver.registerContentObserver(LauncherSettings.Favorites.CONTENT_URI, true, mFavoritesObserver);
+        resolver.registerContentObserver(FavoritesURI.CONTENT_URI, true, mFavoritesObserver);
     }
 
     /**

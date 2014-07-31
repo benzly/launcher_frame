@@ -34,11 +34,11 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.PaintDrawable;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
 import com.joysee.portal.launcher.FastBitmapDrawable;
-
 
 import java.util.ArrayList;
 
@@ -117,8 +117,11 @@ public final class Utilities {
      * Returns a bitmap suitable for the all apps view.
      */
     public static Bitmap createIconBitmap(Drawable icon, Context context) {
-        synchronized (sCanvas) { // we share the statics :-(
-            if (sIconWidth == -1) {
+        synchronized (sCanvas) {
+            if (sIconWidth == -1 || sIconTextureWidth == -1) {
+                initStatics(context);
+            } 
+            if (sIconWidth == 0 || sIconTextureWidth == 0) {
                 initStatics(context);
             }
 
@@ -153,8 +156,7 @@ public final class Utilities {
             int textureWidth = sIconTextureWidth;
             int textureHeight = sIconTextureHeight;
 
-            final Bitmap bitmap = Bitmap.createBitmap(textureWidth, textureHeight,
-                    Bitmap.Config.ARGB_8888);
+            final Bitmap bitmap = Bitmap.createBitmap(textureWidth, textureHeight, Bitmap.Config.ARGB_8888);
             final Canvas canvas = sCanvas;
             canvas.setBitmap(bitmap);
 
@@ -308,7 +310,7 @@ public final class Utilities {
         final DisplayMetrics metrics = resources.getDisplayMetrics();
         final float density = metrics.density;
 
-        sIconWidth = sIconHeight = 50; // TODO
+        sIconWidth = sIconHeight = 48; // TODO
         sIconTextureWidth = sIconTextureHeight = sIconWidth;
 
         sBlurPaint.setMaskFilter(new BlurMaskFilter(5 * density, BlurMaskFilter.Blur.NORMAL));

@@ -31,7 +31,7 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.Bitmap;
 import android.util.Log;
-
+import com.joysee.portal.launcher.LauncherProvider.FavoritesType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,7 +63,7 @@ public class AppInfo extends ItemInfo {
     int flags = 0;
 
     AppInfo() {
-        itemType = LauncherSettings.BaseLauncherColumns.ITEM_TYPE_SHORTCUT;
+        itemType = FavoritesType.ITEM_TYPE_SHORTCUT;
     }
 
     protected Intent getIntent() {
@@ -132,7 +132,7 @@ public class AppInfo extends ItemInfo {
         intent.addCategory(Intent.CATEGORY_LAUNCHER);
         intent.setComponent(className);
         intent.setFlags(launchFlags);
-        itemType = LauncherSettings.BaseLauncherColumns.ITEM_TYPE_APPLICATION;
+        itemType = FavoritesType.ITEM_TYPE_APPLICATION;
     }
 
     @Override

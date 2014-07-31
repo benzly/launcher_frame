@@ -26,6 +26,10 @@ import android.content.pm.PackageInfo;
 import android.graphics.Bitmap;
 import android.util.Log;
 
+import com.joysee.portal.launcher.LauncherProvider.FavoritesColumns;
+import com.joysee.portal.launcher.LauncherProvider.FavoritesIconType;
+import com.joysee.portal.launcher.LauncherProvider.FavoritesType;
+
 import java.util.ArrayList;
 
 /**
@@ -65,13 +69,13 @@ class ShortcutInfo extends ItemInfo {
     int flags = 0;
 
     ShortcutInfo() {
-        itemType = LauncherSettings.BaseLauncherColumns.ITEM_TYPE_SHORTCUT;
+        itemType = FavoritesType.ITEM_TYPE_SHORTCUT;
     }
 
     protected Intent getIntent() {
         return intent;
     }
-    
+
     public ShortcutInfo(Context context, ShortcutInfo info) {
         super(info);
         title = info.title.toString();
@@ -81,10 +85,10 @@ class ShortcutInfo extends ItemInfo {
             iconResource.packageName = info.iconResource.packageName;
             iconResource.resourceName = info.iconResource.resourceName;
         }
-        mIcon = info.mIcon; // TODO: should make a copy here.  maybe we don't need this ctor at all
+        mIcon = info.mIcon; // TODO: should make a copy here. maybe we don't
+                            // need this ctor at all
         customIcon = info.customIcon;
-        initFlagsAndFirstInstallTime(
-                getPackageInfo(context, intent.getComponent().getPackageName()));
+        initFlagsAndFirstInstallTime(getPackageInfo(context, intent.getComponent().getPackageName()));
     }
 
     /** TODO: Remove this.  It's only called by ApplicationInfo.makeShortcut. */
@@ -141,9 +145,8 @@ class ShortcutInfo extends ItemInfo {
         intent.addCategory(Intent.CATEGORY_LAUNCHER);
         intent.setComponent(className);
         intent.setFlags(launchFlags);
-        itemType = LauncherSettings.BaseLauncherColumns.ITEM_TYPE_APPLICATION;
-        initFlagsAndFirstInstallTime(
-                getPackageInfo(context, intent.getComponent().getPackageName()));
+        itemType = FavoritesType.ITEM_TYPE_APPLICATION;
+        initFlagsAndFirstInstallTime(getPackageInfo(context, intent.getComponent().getPackageName()));
     }
 
     @Override
@@ -151,26 +154,22 @@ class ShortcutInfo extends ItemInfo {
         super.onAddToDatabase(values);
 
         String titleStr = title != null ? title.toString() : null;
-        values.put(LauncherSettings.BaseLauncherColumns.TITLE, titleStr);
+        values.put(FavoritesColumns.TITLE, titleStr);
 
         String uri = intent != null ? intent.toUri(0) : null;
-        values.put(LauncherSettings.BaseLauncherColumns.INTENT, uri);
+        values.put(FavoritesColumns.INTENT, uri);
 
         if (customIcon) {
-            values.put(LauncherSettings.BaseLauncherColumns.ICON_TYPE,
-                    LauncherSettings.BaseLauncherColumns.ICON_TYPE_BITMAP);
+            values.put(FavoritesColumns.ICONTYPE, FavoritesIconType.ICON_TYPE_BITMAP);
             writeBitmap(values, mIcon);
         } else {
             if (!usingFallbackIcon) {
                 writeBitmap(values, mIcon);
             }
-            values.put(LauncherSettings.BaseLauncherColumns.ICON_TYPE,
-                    LauncherSettings.BaseLauncherColumns.ICON_TYPE_RESOURCE);
+            values.put(FavoritesColumns.ICONTYPE, FavoritesIconType.ICON_TYPE_RESOURCE);
             if (iconResource != null) {
-                values.put(LauncherSettings.BaseLauncherColumns.ICON_PACKAGE,
-                        iconResource.packageName);
-                values.put(LauncherSettings.BaseLauncherColumns.ICON_RESOURCE,
-                        iconResource.resourceName);
+                values.put(FavoritesColumns.ICONPACKAGE, iconResource.packageName);
+                values.put(FavoritesColumns.ICONRESOURCE, iconResource.resourceName);
             }
         }
     }
@@ -186,10 +185,9 @@ class ShortcutInfo extends ItemInfo {
     public static void dumpShortcutInfoList(String tag, String label,
             ArrayList<ShortcutInfo> list) {
         Log.d(tag, label + " size=" + list.size());
-        for (ShortcutInfo info: list) {
+        for (ShortcutInfo info : list) {
             Log.d(tag, "   title=\"" + info.title + " icon=" + info.mIcon
                     + " customIcon=" + info.customIcon);
         }
     }
 }
-

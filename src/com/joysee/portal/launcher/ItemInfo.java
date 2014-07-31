@@ -28,6 +28,8 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.util.Log;
 
+import com.joysee.portal.launcher.LauncherProvider.FavoritesColumns;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
@@ -133,18 +135,18 @@ public class ItemInfo {
      * @param values
      */
     void onAddToDatabase(ContentValues values) {
-        values.put(LauncherSettings.BaseLauncherColumns.ITEM_TYPE, itemType);
-        values.put(LauncherSettings.Favorites.CONTAINER, container);
-        values.put(LauncherSettings.Favorites.SCREEN, screenId);
-        values.put(LauncherSettings.Favorites.CELLX, cellX);
-        values.put(LauncherSettings.Favorites.CELLY, cellY);
-        values.put(LauncherSettings.Favorites.SPANX, spanX);
-        values.put(LauncherSettings.Favorites.SPANY, spanY);
+        values.put(FavoritesColumns.ITEMTYPE, itemType);
+        values.put(FavoritesColumns.CONTAINER, container);
+        values.put(FavoritesColumns.SCREEN, screenId);
+        values.put(FavoritesColumns.CELLX, cellX);
+        values.put(FavoritesColumns.CELLY, cellY);
+        values.put(FavoritesColumns.CELLW, spanX);
+        values.put(FavoritesColumns.CELLH, spanY);
     }
 
     void updateValuesWithCoordinates(ContentValues values, int cellX, int cellY) {
-        values.put(LauncherSettings.Favorites.CELLX, cellX);
-        values.put(LauncherSettings.Favorites.CELLY, cellY);
+        values.put(FavoritesColumns.CELLX, cellX);
+        values.put(FavoritesColumns.CELLY, cellY);
     }
 
     static byte[] flattenBitmap(Bitmap bitmap) {
@@ -166,7 +168,7 @@ public class ItemInfo {
     static void writeBitmap(ContentValues values, Bitmap bitmap) {
         if (bitmap != null) {
             byte[] data = flattenBitmap(bitmap);
-            values.put(LauncherSettings.Favorites.ICON, data);
+            values.put(FavoritesColumns.ICON, data);
         }
     }
 

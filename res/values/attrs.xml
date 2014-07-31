@@ -166,16 +166,26 @@
         <attr name="screen" format="string" />
         <attr name="x" format="string" />
         <attr name="y" format="string" />
-        <attr name="spanX" format="string" />
-        <attr name="spanY" format="string" />
+        <attr name="w" format="string" />
+        <attr name="h" format="string" />
         <attr name="icon" format="reference" />
         <attr name="title" format="reference" />
         <attr name="uri" format="string" />
     </declare-styleable>
+
+    <!--  -->
+    <declare-styleable name="ScreenTab">
+        <attr name="name_cn" format="string" />
+        <attr name="name_en" format="string" />
+        <attr name="position" format="string" />
+    </declare-styleable>
+
+    <!--  -->
     <declare-styleable name="Extra">
         <attr name="key" format="string" />
         <attr name="value" format="string" />
     </declare-styleable>
+    <!--  -->
     <declare-styleable name="Include">
         <attr name="workspace" format="reference" />
     </declare-styleable>

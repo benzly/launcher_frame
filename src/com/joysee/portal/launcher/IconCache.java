@@ -30,7 +30,6 @@ import android.graphics.drawable.Drawable;
 
 import com.joysee.portal.launcher.utils.Utilities;
 
-
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -230,8 +229,7 @@ public class IconCache {
                 entry.title = info.activityInfo.name;
             }
 
-            entry.icon = Utilities.createIconBitmap(
-                    getFullResIcon(info), mContext);
+            entry.icon = Utilities.createIconBitmap(getFullResIcon(info), mContext);
         }
         return entry;
     }

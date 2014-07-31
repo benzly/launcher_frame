@@ -26,13 +26,12 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 
-
 /**
  * Stores the list of all applications for the all apps view.
  */
 class AllAppsList {
     public static final int DEFAULT_APPLICATIONS_NUMBER = 42;
-    
+
     /** The list off all apps. */
     public ArrayList<AppInfo> data =
             new ArrayList<AppInfo>(DEFAULT_APPLICATIONS_NUMBER);
@@ -125,7 +124,8 @@ class AllAppsList {
     public void updatePackage(Context context, String packageName) {
         final List<ResolveInfo> matches = findActivitiesForPackage(context, packageName);
         if (matches.size() > 0) {
-            // Find disabled/removed activities and remove them from data and add them
+            // Find disabled/removed activities and remove them from data and
+            // add them
             // to the removed list.
             for (int i = data.size() - 1; i >= 0; i--) {
                 final AppInfo applicationInfo = data.get(i);
@@ -202,7 +202,7 @@ class AllAppsList {
      */
     private static boolean findActivity(ArrayList<AppInfo> apps, ComponentName component) {
         final int N = apps.size();
-        for (int i=0; i<N; i++) {
+        for (int i = 0; i < N; i++) {
             final AppInfo info = apps.get(i);
             if (info.componentName.equals(component)) {
                 return true;
@@ -215,7 +215,7 @@ class AllAppsList {
      * Find an ApplicationInfo object for the given packageName and className.
      */
     private AppInfo findApplicationInfoLocked(String packageName, String className) {
-        for (AppInfo info: data) {
+        for (AppInfo info : data) {
             final ComponentName component = info.intent.getComponent();
             if (packageName.equals(component.getPackageName())
                     && className.equals(component.getClassName())) {

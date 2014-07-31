@@ -78,6 +78,7 @@ public class DeferredHandler {
     public void post(Runnable runnable) {
         post(runnable, 0);
     }
+
     public void post(Runnable runnable, int type) {
         synchronized (mQueue) {
             mQueue.add(new Pair<Runnable, Integer>(runnable, type));
@@ -91,15 +92,18 @@ public class DeferredHandler {
     public void postIdle(final Runnable runnable) {
         postIdle(runnable, 0);
     }
+
     public void postIdle(final Runnable runnable, int type) {
         post(new IdleRunnable(runnable), type);
     }
 
     public void cancelRunnable(Runnable runnable) {
         synchronized (mQueue) {
-            while (mQueue.remove(runnable)) { }
+            while (mQueue.remove(runnable)) {
+            }
         }
     }
+
     public void cancelAllRunnablesOfType(int type) {
         synchronized (mQueue) {
             ListIterator<Pair<Runnable, Integer>> iter = mQueue.listIterator();
@@ -143,4 +147,3 @@ public class DeferredHandler {
         }
     }
 }
-
